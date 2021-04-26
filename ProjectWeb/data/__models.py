@@ -1,2 +1,2 @@
-from . import users
+from . import users # Импорт таблиц для баззы данных
 from . import books
