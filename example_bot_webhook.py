@@ -1,76 +1,88 @@
-import logging
-import ssl
+from telegram import InlineQueryResultArticle, InputTextMessageContent
+from telegram.ext import Updater, CommandHandler
+from telegram.ext import MessageHandler, Filters, InlineQueryHandler
+import os
 
-from aiohttp import web
-
-import telebot
-
-API_TOKEN = '<api_token>'
-
-WEBHOOK_HOST = '<ip/host where the bot is running>'
-WEBHOOK_PORT = 8443  # 443, 80, 88 or 8443 (port need to be 'open')
-WEBHOOK_LISTEN = '0.0.0.0'  # In some VPS you may need to put here the IP addr
-
-WEBHOOK_SSL_CERT = './webhook_cert.pem'  # Path to the ssl certificate
-WEBHOOK_SSL_PRIV = './webhook_pkey.pem'  # Path to the ssl private key
-
-# Quick'n'dirty SSL certificate generation:
-#
-# openssl genrsa -out webhook_pkey.pem 2048
-# openssl req -new -x509 -days 3650 -key webhook_pkey.pem -out webhook_cert.pem
-#
-# When asked for "Common Name (e.g. server FQDN or YOUR name)" you should reply
-# with the same value in you put in WEBHOOK_HOST
-
-WEBHOOK_URL_BASE = "https://{}:{}".format(WEBHOOK_HOST, WEBHOOK_PORT)
-WEBHOOK_URL_PATH = "/{}/".format(API_TOKEN)
-
-logger = telebot.logger
-telebot.logger.setLevel(logging.INFO)
-
-bot = telebot.TeleBot(API_TOKEN)
-
-app = web.Application()
+TOKEN = '1730695422:AAHqBhhtk-P6hxbTwuCnLBRg0-IywSZMyH0'
+updater = Updater(token=TOKEN)
+dispatcher = updater.dispatcher
 
 
-# Process webhook calls
-async def handle(request):
-    if request.match_info.get('1730695422:AAHqBhhtk-P6hxbTwuCnLBRg0-IywSZMyH0') == bot.token:
-        request_body_dict = await request.json()
-        update = telebot.types.Update.de_json(request_body_dict)
-        bot.process_new_updates([update])
-        return web.Response()
+# функция обработки команды '/start'
+def start(update, context):
+    context.bot.send_message(chat_id=update.effective_chat.id,
+                             text="I'm a bot, please talk to me!")
+
+
+# функция обработки текстовых сообщений
+def echo(update, context):
+    text = 'ECHO: ' + update.message.text
+    context.bot.send_message(chat_id=update.effective_chat.id,
+                             text=text)
+
+
+# функция обработки команды '/caps'
+def caps(update, context):
+    if context.args:
+        text_caps = ' '.join(context.args).upper()
+        context.bot.send_message(chat_id=update.effective_chat.id,
+                                 text=text_caps)
     else:
-        return web.Response(status=403)
+        context.bot.send_message(chat_id=update.effective_chat.id,
+                                 text='No command argument')
+        context.bot.send_message(chat_id=update.effective_chat.id,
+                                 text='send: /caps argument')
 
 
-app.router.add_post('/{token}/', handle)
+# функция обработки встроенного запроса
+def inline_caps(update, context):
+    query = update.inline_query.query
+    if not query:
+        return
+    results = list()
+    results.append(
+        InlineQueryResultArticle(
+            id=query.upper(),
+            title='Convert to UPPER TEXT',
+            input_message_content=InputTextMessageContent(query.upper())
+        )
+    )
+    context.bot.answer_inline_query(update.inline_query.id, results)
 
 
-# Handle '/start' and '/help'
-@bot.message_handler(commands=['help', 'start'])
-def send_welcome(message):
-    bot.reply_to(message,
-                 ("Hi there, I am EchoBot.\n"
-                  "I am here to echo your kind words back to you."))
+# функция обработки не распознных команд
+def unknown(update, context):
+    context.bot.send_message(chat_id=update.effective_chat.id,
+                             text="Sorry, I didn't understand that command.")
 
 
-# Handle all other messages
-@bot.message_handler(func=lambda message: True, content_types=['text'])
-def echo_message(message):
-    bot.reply_to(message, message.text)
+# обработчик команды '/start'
+start_handler = CommandHandler('start', start)
+dispatcher.add_handler(start_handler)
 
+# обработчик текстовых сообщений
+echo_handler = MessageHandler(Filters.text & (~Filters.command), echo)
+dispatcher.add_handler(echo_handler)
 
+# обработчик команды '/caps'
+caps_handler = CommandHandler('caps', caps)
+dispatcher.add_handler(caps_handler)
 
+# обработчик встроенных запросов
+inline_caps_handler = InlineQueryHandler(inline_caps)
+dispatcher.add_handler(inline_caps_handler)
 
-# Build ssl context
-context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
-context.load_cert_chain(WEBHOOK_SSL_CERT, WEBHOOK_SSL_PRIV)
+# обработчик не распознных команд
+unknown_handler = MessageHandler(Filters.command, unknown)
+dispatcher.add_handler(unknown_handler)
 
-# Start aiohttp server
-web.run_app(
-    app,
-    host=WEBHOOK_LISTEN,
-    port=WEBHOOK_PORT,
-    ssl_context=context,
-)
+# запуск прослушивания сообщений
+
+PORT = int(os.environ.get('PORT', '8443'))
+# add handlers
+updater.start_webhook(listen="0.0.0.0",
+                      port=PORT,
+                      url_path=TOKEN,
+                      webhook_url="https://librarytriangle.herokuapp.com/" + TOKEN)
+updater.idle()
+# обработчик нажатия Ctrl+C

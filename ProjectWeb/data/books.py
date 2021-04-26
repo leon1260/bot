@@ -11,4 +11,4 @@ class Book(SqlAlchemyBase, UserMixin):
     id = sqlalchemy.Column(sqlalchemy.Integer,
                            primary_key=True, autoincrement=True)
     name = sqlalchemy.Column(sqlalchemy.String, nullable=True)
-    # container = sqlalchemy.Column(sqlalchemy.String)
+    container = sqlalchemy.Column(sqlalchemy.String, nullable=False)
