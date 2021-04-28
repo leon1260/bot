@@ -18,11 +18,13 @@ with open('data/replies.txt', 'r', encoding='utf-8') as f:
         '/login': [data[0], ]
     }
 
-bot_token = '1730695422:AAHqBhhtk-P6hxbTwuCnLBRg0-IywSZMyH0'
+# токен требуемый для запуска бота
+bot_token = '1748280362:AAEQdIVlTzX5tqYngvgOpA8Jehlxj75cC1M'
 bot = telebot.TeleBot(bot_token)
 
 # web_hook = f'https://yourwebhookserver.com/{bot_token}'
 
+# команды, которые можно ввести боту
 commands = ['/start', '/help', '/login - зарегистрироваться']
 db_session.global_init('db/library.db')
 
@@ -32,6 +34,7 @@ info = [False, []]
 # Приветствие //
 
 
+# запуск бота + вывод возможных команд
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
     global info
@@ -39,6 +42,7 @@ def send_welcome(message):
         bot.send_message(message.from_user.id, 'Доступные команды:\n' + "\n".join(commands))
 
 
+# регистрация пользователя
 @bot.message_handler(commands=['login'])
 def start_login(message):
     if message.text == '/login':
@@ -76,6 +80,7 @@ def start_login(message):
 #         db_sess.commit()
 
 
+# основа бота
 @bot.message_handler(content_types=['text', 'document'])
 def get_text_messages(message):
     # markup = types.ReplyKeyboardMarkup(one_time_keyboard=True)
@@ -108,6 +113,7 @@ def get_text_messages(message):
         bot.send_message(message.from_user.id, message.text)
 
 
+# получение файла с книгой
 def add_book(message):
     file_info = bot.get_file(message.document.file_id)
     downloaded_file = bot.download_file(file_info.file_path)
@@ -120,6 +126,7 @@ def add_book(message):
     bot.register_next_step_handler(message, add_book_db, src)
 
 
+# добавление книги в базу данных и в хранилище
 def add_book_db(message, src):
     db_sess = db_session.create_session()
     new_book = Book()
@@ -133,6 +140,7 @@ def add_book_db(message, src):
 name = ''
 
 
+# поиск книги
 def find_book(message):
     global name
     name = message.text
@@ -147,6 +155,7 @@ def find_book(message):
     bot.send_message(message.from_user.id, text='Книга?', reply_markup=btn_title_books)
 
 
+# выгрузка книг пользователю в зависимости от нажатой кнопки
 @bot.callback_query_handler(func=lambda call: True)
 def callback_worker(message):
     global name
